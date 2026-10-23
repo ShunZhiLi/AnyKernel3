@@ -644,6 +644,21 @@ jobs:
       # 上游自 5b83330b（2026-10-23）起树内原生集成 SUSFS，与 SukiSU/BakaSU
       # 同为「驱动侧不打补丁」形态，由「应用 SUSFS 补丁」步骤统一校验并应用
 
+      # SukiSU 的 builtin 分支（内建+SUSFS 产品线）与 main 分支相互独立，
+      # 官方管理器 APK 始终按 main 分支构建。main 抬升
+      # KERNEL_SU_UAPI_VERSION 时（如 3b60791 UAPI 6 新增
+      # KSU_IOCTL_LOOKUP_SYMBOLS + KSU_GET_INFO_FLAG_PREINIT），builtin
+      # 检出内核 UAPI 落后于管理器，首页报"需要更新内核"
+      # （Natives.kt: managerUAPIVersion > kernelUAPIVersion）。
+      # 此步骤动态同步：读取官方 main 的 uapi/supercall.h，把缺失常量/结构
+      # 按 main 原文移植进 builtin 检出并抬升 UAPI 号，UAPI >= 6 时附带
+      # 注入 LOOKUP_SYMBOLS 处理器 + symbol_resolver 内核侧能力；
+      # 上游 builtin 自行同步后自动跳过，详见 scripts/ksu_uapi_sync/sync_uapi.sh
+      - name: 同步 SukiSU 内核 UAPI 版本（对齐官方管理器）
+        if: inputs.ksu_variant == 'SukiSU'
+        working-directory: ${{ env.KERNEL_ROOT }}
+        run: bash "$GITHUB_WORKSPACE/scripts/ksu_uapi_sync/sync_uapi.sh" KernelSU
+
       # SukiSU builtin 分支的 hook/lsm_hook.c 仍以旧签名调用
       # security_add_hooks(hooks, count, "ksu")，6.8+ 内核要求 const struct lsm_id *，
       # android16-6.12 GKI 编译直接失败；kpm super_access.c 引用的
