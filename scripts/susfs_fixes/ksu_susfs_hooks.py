@@ -5,10 +5,10 @@
   主补丁在 security/selinux/{hooks,selinuxfs}.c 内联改写调用点，要求 KernelSU 侧
   以全局符号提供 my_setprocattr / my_write_context / my_write_access（KernelSU-Next
   形态），并在 fs/exec.c 调用 ksu_setup_preinit_file / ksu_preinit_handle_post_execveat
-  （受 KSU_NO_PREINIT 开关控制）。SukiSU-Ultra（builtin / main）既没有上述 SELinux
-  钩子实现，也没有 preinit 后端，vmlinux 链接阶段直接报：
-    ld.lld: error: undefined symbol: my_setprocattr / my_write_context / my_write_access
-    ld.lld: error: undefined symbol: ksu_setup_preinit_file / ksu_preinit_handle_post_execveat
+  （受 KSU_NO_PREINIT 开关控制）。缺任一符号的变体会在 vmlinux 链接阶段报
+  undefined symbol：SukiSU main 的 my_* 仍为 static（文件内私有），SukiSU builtin
+  虽已全局导出 my_*，但其 preinit 用的是另一套 ksu_preinit_* API，不含上述两个
+  入口，preinit 裁剪对每个变体仍然生效。
 
 处理：
   1) 缺少 my_* 全局实现时，删除对应 extern 声明，并把包装函数回落到内核原生处理函数
